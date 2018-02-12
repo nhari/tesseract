@@ -1,0 +1,22 @@
+{
+  "name": "tesseract",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "output"
+  ],
+  "dependencies": {
+    "purescript-prelude": "^3.1.1",
+    "purescript-console": "^3.0.0",
+    "purescript-halogen": "^3.1.1",
+    "purescript-aff-coroutines": "^6.0.0",
+    "purescript-argonaut": "^3.1.0",
+    "purescript-affjax": "^5.0.0",
+    "purescript-array-shuffle": "^1.0.0",
+    "purescript-halogen-css": "^7.0.0"
+  },
+  "devDependencies": {
+    "purescript-psci-support": "^3.0.0"
+  }
+}
