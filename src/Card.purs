@@ -15,10 +15,6 @@ import Data.Argonaut.Parser (jsonParser)
 import Data.Argonaut.Encode.Combinators (assoc, extend)
 import Data.Argonaut.Decode.Combinators (getField, getFieldOptional, defaultField)
 
-newtype MtgJsonCard = MtgJsonCard {
-  
-}
-
 data Color = White | Blue | Black | Red | Green
 instance encodeColor :: EncodeJson Color where
   encodeJson White = fromString "White"

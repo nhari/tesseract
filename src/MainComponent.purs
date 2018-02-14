@@ -16,33 +16,33 @@ import Halogen.HTML.Properties as HP
 
 cardColorToStyles :: Array C.Color -> { bodyColor :: CSS.CSS, textBoxColor :: CSS.CSS }
 cardColorToStyles [] = {
-    bodyColor: CSS.backgroundColor $ CSS.rgb 198 208 209,
-    textBoxColor: CSS.backgroundColor $ CSS.rgb 223 228 224
-  }
+  bodyColor: CSS.backgroundColor $ CSS.rgb 198 208 209,
+  textBoxColor: CSS.backgroundColor $ CSS.rgb 223 228 224
+}
 cardColorToStyles [C.White] = {
-    bodyColor: CSS.backgroundColor $ CSS.rgb 212 207 188,
-    textBoxColor: CSS.backgroundColor $ CSS.rgb 225 226 218
-  }
+  bodyColor: CSS.backgroundColor $ CSS.rgb 212 207 188,
+  textBoxColor: CSS.backgroundColor $ CSS.rgb 225 226 218
+}
 cardColorToStyles [C.Blue] = {
-    bodyColor: CSS.backgroundColor $ CSS.rgb 108 156 194,
-    textBoxColor: CSS.backgroundColor $ CSS.rgb 166 193 202
-  }
+  bodyColor: CSS.backgroundColor $ CSS.rgb 108 156 194,
+  textBoxColor: CSS.backgroundColor $ CSS.rgb 166 193 202
+}
 cardColorToStyles [C.Black] = {
-    bodyColor: CSS.backgroundColor $ CSS.rgb 32 34 29,
-    textBoxColor: CSS.backgroundColor $ CSS.rgb 172 160 146
-  }
+  bodyColor: CSS.backgroundColor $ CSS.rgb 42 45 43,
+  textBoxColor: CSS.backgroundColor $ CSS.rgb 172 160 146
+}
 cardColorToStyles [C.Red] = {
-    bodyColor: CSS.backgroundColor $ CSS.rgb 207 113 85,
-    textBoxColor: CSS.backgroundColor $ CSS.rgb 217 180 154
-  }
+  bodyColor: CSS.backgroundColor $ CSS.rgb 207 113 85,
+  textBoxColor: CSS.backgroundColor $ CSS.rgb 217 180 154
+}
 cardColorToStyles [C.Green] = {
-    bodyColor: CSS.backgroundColor $ CSS.rgb 118 140 104,
-    textBoxColor: CSS.backgroundColor $ CSS.rgb 177 182 159
-  }
+  bodyColor: CSS.backgroundColor $ CSS.rgb 118 140 104,
+  textBoxColor: CSS.backgroundColor $ CSS.rgb 177 182 159
+}
 cardColorToStyles _ = {
-    bodyColor: CSS.backgroundColor $ CSS.rgb 192 165 96,
-    textBoxColor: CSS.backgroundColor $ CSS.rgb 246 234 212
-  }
+  bodyColor: CSS.backgroundColor $ CSS.rgb 192 165 96,
+  textBoxColor: CSS.backgroundColor $ CSS.rgb 246 234 212
+}
 
 divWithClass :: forall p i. String -> Array (HH.HTML p i) -> HH.HTML p i
 divWithClass className = HH.div [ HP.class_ $ H.ClassName className ]
@@ -146,6 +146,7 @@ data Query a
 
 data Message
   = PassedCards (Array C.Card)
+  | EndOfPack
 
 component :: forall m. H.Component HH.HTML Query Unit Message m
 component =
@@ -191,5 +192,6 @@ component =
     pure next
   eval (ReceiveCards cards next) = do
     H.modify (_ { pack = cards })
+    when (A.null cards) $ H.raise EndOfPack
     pure next
 

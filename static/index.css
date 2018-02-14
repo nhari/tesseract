@@ -51,6 +51,10 @@
   border: 1px solid #888;
   border-radius: 2px;
   padding: 3px 2px 2px 3px;
+
+  overflow-x: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .card-name {
@@ -73,7 +77,6 @@
 
 .art-image {
   height: 100%;
-  /* background-image: url(https://magiccards.info/scans/en/rix/153.jpg); */
   background-position: -19px 399px;
   border: 1px solid #666;
   border-radius: 2px;
@@ -91,9 +94,14 @@
 }
 
 .card-type {
-  margin: 1px 0 0 1px;
+  margin: 1px 2px 0 1px;
   font-size: 12px;
   font-weight: 600;
+
+  width: 80%;
+  overflow-x: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .expansion {
@@ -117,6 +125,11 @@
   margin: 4px 1px 0px 1px;
   border: 1px solid #888;
   border-radius: 2px;
+
+  overflow-x: initial;
+  overflow-y: hidden;
+  /* white-space: nowrap; */
+  text-overflow: ellipsis;
 }
 
 .oracle-text {

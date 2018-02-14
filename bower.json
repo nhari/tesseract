@@ -14,7 +14,8 @@
     "purescript-argonaut": "^3.1.0",
     "purescript-affjax": "^5.0.0",
     "purescript-array-shuffle": "^1.0.0",
-    "purescript-halogen-css": "^7.0.0"
+    "purescript-halogen-css": "^7.0.0",
+    "purescript-foreign-generic": "^5.0.0"
   },
   "devDependencies": {
     "purescript-psci-support": "^3.0.0"

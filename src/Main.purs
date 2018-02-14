@@ -23,13 +23,12 @@ import Data.Array.Shuffle (shuffle)
 import Data.Either (Either(..), either)
 import Data.Foldable (for_)
 import Data.Foreign (F, Foreign, toForeign, readString)
-import Data.HTTP.Method (Method(..))
 import Data.Maybe (Maybe(..))
 import Halogen as H
 import Halogen.Aff as HA
 import Halogen.VDom.Driver (runUI)
 import MainComponent as MC
-import Network.HTTP.Affjax (affjax, defaultRequest, AJAX)
+import Network.HTTP.Affjax (AJAX, get)
 
 -- A producer coroutine that emits messages that arrive from the websocket.
 wsProducer
@@ -51,31 +50,8 @@ wsProducer socket = CRA.produce \emit ->
     readHelper read =
       either (const Nothing) Just <<< runExcept <<< read <<< toForeign
 
--- A consumer coroutine that takes the `query` function from our component IO
--- record and sends `ReceiveCards` queries in when it receives inputs from the
--- producer.
-wsConsumer
-  :: forall eff
-   . (MC.Query ~> Aff (HA.HalogenEffects eff))
-  -> CR.Consumer String (Aff (HA.HalogenEffects eff)) Unit
-wsConsumer query = CR.consumer \msg -> case C.stringToCards msg of
-    Right cards -> do
-      query $ H.action $ MC.ReceiveCards cards
-      pure Nothing
-    Left error -> do
-      liftEff $ throw $ "Error parsing message from websocket: " <> error <> " (" <> msg <> ")"
-
--- A consumer coroutine that takes output messages from our component IO
--- and sends them using the websocket
-wsSender
-  :: forall eff
-   . WS.WebSocket
-  -> CR.Consumer MC.Message (Aff (HA.HalogenEffects (dom :: DOM | eff))) Unit
-wsSender socket = CR.consumer \msg -> do
-  case msg of
-    MC.PassedCards msgContents ->
-      liftEff $ WS.sendString socket $ C.cardsToString msgContents
-  pure Nothing
+generatePack :: forall eff. Array C.Card -> Eff (random :: RANDOM | eff) (Array C.Card)
+generatePack cards = take 15 <$> shuffle cards
 
 type MainEffects = HA.HalogenEffects (
   dom :: DOM,
@@ -85,25 +61,36 @@ type MainEffects = HA.HalogenEffects (
 )
 main :: Eff MainEffects Unit
 main = launchAff_ do
-  res <- affjax $ defaultRequest { url = "./cards.json", method = Left GET }
+  res <- get "./cards.json"
   liftEff $ case C.stringToCards res.response of
     Left error -> do
       log $ "Error parsing data: " <> error
       pure unit
     Right cards -> do
-      pack <- take 15 <$> shuffle cards
-      connection <- WS.create (WS.URL "ws://echo.websocket.org") []
+      connection <- WS.create (WS.URL "wss://echo.websocket.org") []
       HA.runHalogenAff do
         body <- HA.awaitBody
         io <- runUI MC.component unit body
 
         -- Send the inital cards
+        pack <- liftEff $ generatePack cards
         io.query $ MC.ReceiveCards pack unit
 
-        -- The wsSender consumer subscribes to all output messages
-        -- from our component
-        io.subscribe $ wsSender connection
+        -- Handle messages from the component
+        io.subscribe $ CR.consumer \msg -> do
+          case msg of
+            MC.PassedCards msgContents ->
+              liftEff $ WS.sendString connection $ C.cardsToString msgContents
+            MC.EndOfPack -> do
+              pack <- liftEff $ generatePack cards
+              io.query $ MC.ReceiveCards pack unit
+          pure Nothing
 
-        -- Connecting the consumer to the producer initializes both,
-        -- feeding queries back to our component as messages are received.
-        CR.runProcess (wsProducer connection CR.$$ wsConsumer io.query)
+        -- Listen to messages from the websocket
+        CR.runProcess $ CR.connect (wsProducer connection) $ CR.consumer \msg ->
+          case C.stringToCards msg of
+            Right cards -> do
+              io.query $ H.action $ MC.ReceiveCards cards
+              pure Nothing
+            Left error -> do
+              liftEff $ throw $ "Error parsing message from websocket: " <> error <> " (" <> msg <> ")"
