@@ -7,3 +7,5 @@
 /.psc*
 /.purs*
 /.psa*
+static/main.js
+static/sets.json
