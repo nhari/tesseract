@@ -1,158 +1,114 @@
 module Card where
 
-import Prelude (bind, not, pure, ($), (#), (<<<), (>>>), (<>), (>>=))
-import Data.Array (filter, foldr)
-import Data.Maybe (Maybe(Just, Nothing))
-import Data.Either (Either(Left, Right), note)
-import Data.Tuple (snd)
-import Data.Argonaut (
-  class EncodeJson,
-  class DecodeJson,
-  decodeJson, encodeJson,
-  fromString, toString)
-import Data.Argonaut.Core (jsonEmptyObject, isNull, stringify)
-import Data.Argonaut.Parser (jsonParser)
-import Data.Argonaut.Encode.Combinators (assoc, extend)
-import Data.Argonaut.Decode.Combinators (getField, getFieldOptional, defaultField)
+import Data.Foreign.Class (class Decode, class Encode)
+import Data.Foreign.Generic (defaultOptions, genericDecode, genericEncode)
+import Data.Maybe (Maybe)
+import Data.Generic.Rep (class Generic)
+import Data.Generic.Rep.Show (genericShow)
+import Data.NonEmpty (NonEmpty(..))
+import Data.Set as S
+import Data.Natural (Natural)
+import Prelude (class Eq, class Ord, class Show)
 
 data Color = White | Blue | Black | Red | Green
-instance encodeColor :: EncodeJson Color where
-  encodeJson White = fromString "White"
-  encodeJson Blue = fromString "Blue"
-  encodeJson Black = fromString "Black"
-  encodeJson Red = fromString "Red"
-  encodeJson Green = fromString "Green"
-instance decodeColor :: DecodeJson Color where
-  decodeJson json = do
-    jString <- note "Color must be a string" $ toString json
-    case jString of
-      "White" -> Right White
-      "Blue" -> Right Blue
-      "Black" -> Right Black
-      "Red" -> Right Red
-      "Green" -> Right Green
-      other -> Left $ "Invalid color: " <> other
+derive instance genericColor :: Generic Color _
+derive instance eqColor :: Eq Color
+derive instance ordColor :: Ord Color
+instance showColor :: Show Color where
+  show = genericShow
+instance encodeColor :: Encode Color where
+  encode = genericEncode defaultOptions
+instance decodeColor :: Decode Color where
+  decode = genericDecode defaultOptions
 
-data Layout = Normal | DoubleFaced
-instance encodeLayout :: EncodeJson Layout where
-  encodeJson Normal = fromString "normal"
-  encodeJson DoubleFaced = fromString "double-faced"
-instance decodeLayout :: DecodeJson Layout where
-  decodeJson json = do
-    jString <- case toString json of
-      Nothing -> Left "Layout must be a string"
-      Just s -> Right s
-    case jString of
-      "normal" -> Right Normal
-      "double-faced" -> Right DoubleFaced
-      other -> Left $ "Invalid layout: " <> other
+data Rarity = BasicLand | Common | Uncommon | Rare | MythicRare | Special
+derive instance genericRarity :: Generic Rarity _
+derive instance eqRarity :: Eq Rarity
+derive instance ordRarity :: Ord Rarity
+instance showRarity :: Show Rarity where
+  show = genericShow
+instance encodeRarity :: Encode Rarity where
+  encode = genericEncode defaultOptions
+instance decodeRarity :: Decode Rarity where
+  decode = genericDecode defaultOptions
 
-data Rarity = Common | Uncommon | Rare | MythicRare | BasicLand
-instance encodeRarity :: EncodeJson Rarity where
-  encodeJson Common = fromString "Common"
-  encodeJson Uncommon = fromString "Uncommon"
-  encodeJson Rare = fromString "Rare"
-  encodeJson MythicRare = fromString "Mythic Rare"
-  encodeJson BasicLand = fromString "Basic Land"
-instance decodeRarity :: DecodeJson Rarity where
-  decodeJson json = do
-    jString <- case toString json of
-      Nothing -> Left "Rarity must be a string"
-      Just s -> Right s
-    case jString of
-      "Common" -> Right Common
-      "Uncommon" -> Right Uncommon
-      "Rare" -> Right Rare
-      "Mythic Rare" -> Right MythicRare
-      "Basic Land" -> Right BasicLand
-      other -> Left $ "Invalid rarity: " <> other
+data Card = 
+  SimpleCard CardFace |
+  DoubleFacedCard { front :: CardFace, back :: CardFace } |
+  FlipCard { top :: CardFace, bottom :: CardFace } |
+  SplitCard (NonEmpty Array CardFace)
+derive instance genericCard :: Generic Card _
+derive instance eqCard :: Eq Card
+derive instance ordCard :: Ord Card
+instance showCard :: Show Card where
+  show = genericShow
+-- instance encodeCard :: Encode Card where
+--   encode = genericEncode defaultOptions
+-- instance decodeCard :: Decode Card where
+--   decode = genericDecode defaultOptions
 
-newtype Card = Card {
+data ManaSymbol =
+  Generic Natural |       -- {1}
+  GenericX |              -- {X}
+  Colorless |             -- {C}
+  Snow |                  -- {S}
+  SingleColor Color |     -- {W}
+  Phyrexian Color |       -- {W/P}
+  Hybrid Color Color |    -- {W/U}
+  SingleColorHybrid Color -- {2/W}
+derive instance genericManaSymbol :: Generic ManaSymbol _
+derive instance eqManaSymbol :: Eq ManaSymbol
+derive instance ordManaSymbol :: Ord ManaSymbol
+instance showManaSymbol :: Show ManaSymbol where
+  show ms = genericShow ms
+-- instance encodeManaSymbol :: Encode ManaSymbol where
+--   encode ms = genericEncode defaultOptions ms
+-- instance decodeManaSymbol :: Decode ManaSymbol where
+--   decode ms = genericDecode defaultOptions ms
+
+data Characteristics =
+  PowerToughness { power :: String, toughness :: String } |
+  Loyalty Natural
+derive instance genericCharacteristics :: Generic Characteristics _
+derive instance eqCharacteristics :: Eq Characteristics
+derive instance ordCharacteristics :: Ord Characteristics
+instance showCharacteristics :: Show Characteristics where
+  show = genericShow
+-- instance encodeCharacteristics :: Encode Characteristics where
+--   encode = genericEncode defaultOptions
+-- instance decodeCharacteristics :: Decode Characteristics where
+--   decode = genericDecode defaultOptions
+
+type OracleParagraph = String
+newtype CardFace = CardFace {
   id :: String,
   name :: String,
-  layout :: Layout,
-  manaCost :: Maybe String,
-  cmc :: Int,
-  colors :: Array Color,
-  types :: Array String,
+  setCode :: String,
+  manaCost :: Array ManaSymbol,
+  cmc :: Natural,
+  colors :: S.Set Color,
+  supertypes :: Array String,
+  types :: NonEmpty Array String,
   subtypes :: Array String,
-  text :: Maybe String,
-  power :: Maybe String,
-  toughness :: Maybe String,
-  loyalty :: Maybe Int,
-  flavor :: Maybe String,
+  text :: Array OracleParagraph,
+  characteristics :: Maybe Characteristics,
+  flavor :: String,
   rarity :: Rarity,
   number :: String,
   artist :: String
 }
-instance encodeCard :: EncodeJson Card where
-  encodeJson (Card card) = foldr extend jsonEmptyObject nonNullFields
-    where
-      jsonFields = [
-        assoc "id" card.id,
-        assoc "name" card.name,
-        assoc "layout" card.layout,
-        assoc "manaCost" card.manaCost,
-        assoc "cmc" card.cmc,
-        assoc "colors" card.colors,
-        assoc "types" card.types,
-        assoc "subtypes" card.subtypes,
-        assoc "text" card.text,
-        assoc "power" card.power,
-        assoc "toughness" card.toughness,
-        assoc "loyalty" card.loyalty,
-        assoc "rarity" card.rarity,
-        assoc "flavor" card.flavor,
-        assoc "number" card.number,
-        assoc "artist" card.artist
-      ]
-      nonNullFields = jsonFields # filter (snd >>> isNull >>> not)
-instance decodeCard :: DecodeJson Card where
-  decodeJson json = do
-    jsonObject <- decodeJson json -- decode into JObject
-    id <- getField jsonObject "id"
-    name <- getField jsonObject "name"
-    layout <- getField jsonObject "layout"
-    manaCost <- getFieldOptional jsonObject "manaCost"
-    cmc <- getField jsonObject "cmc"
-    colors <- getFieldOptional jsonObject "colors" `defaultField` []
-    types <- getField jsonObject "types"
-    subtypes <- getFieldOptional jsonObject "subtypes" `defaultField` []
-    text <- getFieldOptional jsonObject "text"
-    power <- getFieldOptional jsonObject "power"
-    toughness <- getFieldOptional jsonObject "toughness"
-    loyalty <- getFieldOptional jsonObject "loyalty"
-    rarity <- getField jsonObject "rarity"
-    flavor <- getFieldOptional jsonObject "flavor"
-    number <- getField jsonObject "number"
-    artist <- getField jsonObject "artist"
-    pure $ Card {
-      id,
-      name,
-      layout,
-      manaCost,
-      cmc,
-      colors,
-      types,
-      subtypes,
-      text,
-      power,
-      toughness,
-      loyalty,
-      rarity,
-      flavor,
-      number,
-      artist
-    }
+derive instance genericCardFace :: Generic CardFace _
+derive instance eqCardFace :: Eq CardFace
+derive instance ordCardFace :: Ord CardFace
+instance showCardFace :: Show CardFace where
+  show = genericShow
+-- instance encodeCardFace :: Encode CardFace where
+--   encode = genericEncode defaultOptions
+-- instance decodeCardFace :: Decode CardFace where
+--   decode = genericDecode defaultOptions
 
-cardToString :: Card -> String
-cardToString = stringify <<< encodeJson
-
-cardsToString :: Array Card -> String 
-cardsToString = stringify <<< encodeJson
-
-stringToCard :: String -> Either String Card
-stringToCard string = jsonParser string >>= decodeJson
-
-stringToCards :: String -> Either String (Array Card)
-stringToCards string = jsonParser string >>= decodeJson
+cardFaces :: Card -> NonEmpty Array CardFace
+cardFaces (SimpleCard cf) = NonEmpty cf []
+cardFaces (DoubleFacedCard { front, back }) = NonEmpty front [back]
+cardFaces (FlipCard { top, bottom }) = NonEmpty top [bottom]
+cardFaces (SplitCard cfs) = cfs

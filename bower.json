@@ -15,7 +15,11 @@
     "purescript-affjax": "^5.0.0",
     "purescript-array-shuffle": "^1.0.0",
     "purescript-halogen-css": "^7.0.0",
-    "purescript-foreign-generic": "^5.0.0"
+    "purescript-foreign-generic": "^5.0.0",
+    "purescript-dom": "^4.15.0",
+    "purescript-validation": "^3.2.0",
+    "purescript-naturals": "^2.2.0",
+    "purescript-parsing": "^4.3.1"
   },
   "devDependencies": {
     "purescript-psci-support": "^3.0.0"
